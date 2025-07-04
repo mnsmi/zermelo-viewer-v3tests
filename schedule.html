@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rooster</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #007bff;
+      --bg: #f4f6f8;
+      --text: #222;
+    }
+    body.dark {
+      --bg: #121212;
+      --text: #eee;
+    }
+    body {
+      margin: 0;
+      font-family: 'Ubuntu', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+    .topbar {
+      background-color: white;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .topbar img {
+      height: 40px;
+      filter: brightness(1.1) saturate(2) hue-rotate(180deg);
+    }
+    .userinfo {
+      text-align: right;
+    }
+    .userinfo div:first-child {
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+    .userinfo div:last-child {
+      font-size: 0.8rem;
+      color: #555;
+    }
+    .sidebar {
+      width: 220px;
+      background-color: white;
+      height: 100vh;
+      position: fixed;
+      top: 64px;
+      left: 0;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      padding-top: 1rem;
+    }
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      text-decoration: none;
+      color: #333;
+      font-weight: bold;
+    }
+    .sidebar a:hover {
+      background-color: #f0f0f0;
+    }
+    .sidebar .material-icons {
+      margin-right: 10px;
+      color: var(--accent);
+    }
+    .content {
+      margin-left: 220px;
+      padding: 2rem;
+      margin-top: 64px;
+    }
+    .loader {
+      display: none;
+      text-align: center;
+      margin-top: 2rem;
+    }
+    .loader img {
+      width: 60px;
+    }
+    .week-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .navbutton {
+      background-color: var(--accent);
+      font-family: 'Ubuntu';
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 10%;
+      font-size: 1rem;
+      transition: background-color 0.3s ease;
+    }
+    .navbutton:hover {
+      background-color: #0056b3;
+    }
+    .lesson {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .dark .lesson {
+      background: #1e1e1e;
+      color: #eee;
+    }
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      .content {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <img src="img/logo.svg" alt="Logo">
+    <div class="userinfo">
+      <div id="studentName"></div>
+      <div id="studentSchool"></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <a href="#"><span class="material-icons">calendar_today</span>Rooster</a>
+    <a href="#"><span class="material-icons">settings</span>Instellingen</a>
+    <a href="#" onclick="toggleDarkMode()"><span class="material-icons">brightness_6</span>Donkere modus</a>
+    <a href="index.html"><span class="material-icons">logout</span>Uitloggen</a>
+  </div>
+
+  <div class="content">
+    <div class="week-nav">
+      <button class="navbutton" onclick="changeWeek(-1)">← Vorige</button>
+      <h2 id="week-title">Weekrooster</h2>
+      <button class="navbutton" onclick="changeWeek(1)">Volgende →</button>
+    </div>
+    <div class="loader" id="loader">
+      <img src="img/loader.gif" alt="Laden...">
+    </div>
+    <div id="schedule"></div>
+  </div>
+
+  <script>
+    let currentDate = new Date();
+
+    function formatDate(date) {
+      return date.toISOString().split("T")[0];
+    }
+
+    function changeWeek(offset) {
+      currentDate.setDate(currentDate.getDate() + offset * 7);
+      loadSchedule();
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+    }
+
+    async function loadSchedule() {
+      const school = localStorage.getItem("school");
+      const koppelcode = localStorage.getItem("koppelcode");
+      const scheduleDiv = document.getElementById("schedule");
+      const loader = document.getElementById("loader");
+
+      if (!school || !koppelcode) {
+        scheduleDiv.innerHTML = "Geen schoolcode of koppelcode gevonden.";
+        return;
+      }
+
+      const start = new Date(currentDate);
+      const end = new Date(currentDate);
+      end.setDate(end.getDate() + 7);
+      const startStr = formatDate(start);
+      const endStr = formatDate(end);
+      document.getElementById("week-title").textContent = `Weekrooster (${startStr} t/m ${endStr})`;
+
+      const cacheKey = `schedule_${startStr}_${endStr}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        scheduleDiv.innerHTML = cached;
+        return;
+      }
+
+      scheduleDiv.innerHTML = "";
+      loader.style.display = "block";
+
+      try {
+        const tokenRes = await fetch(`https://${school}.zportal.nl/api/v3/oauth/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            grant_type: "password",
+            username: koppelcode,
+            password: "",
+            client_id: "ZermeloViewer"
+          })
+        });
+
+        const tokenData = await tokenRes.json();
+        if (!tokenData.access_token) throw new Error("Geen toegangstoken ontvangen.");
+        const accessToken = tokenData.access_token;
+
+        const userInfoRes = await fetch(`https://${school}.zportal.nl/api/v3/users/~me`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const userInfoData = await userInfoRes.json();
+        const leerling = userInfoData.response.data[0];
+        document.getElementById("studentName").textContent = leerling.firstName + " " + leerling.lastName;
+        document.getElementById("studentSchool").textContent = leerling.school || school;
+
+        const scheduleRes = await fetch(`https://${school}.zportal.nl/api/v3/schedule?start=${startStr}&end=${endStr}`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const scheduleData = await scheduleRes.json();
+        loader.style.display = "none";
+
+        if (!scheduleData.response || !scheduleData.response.data || scheduleData.response.data.length === 0) {
+          scheduleDiv.innerHTML = "Geen rooster gevonden.";
+          return;
+        }
+
+        const lessons = scheduleData.response.data;
+        let html = "";
+        lessons.forEach((lesson) => {
+          const start = new Date(lesson.start).toLocaleString();
+          const end = new Date(lesson.end).toLocaleString();
+          const subject = lesson.subject || "Vak";
+          const location = lesson.locations?.join(", ") || "Geen locatie";
+          const teacher = lesson.teachers?.join(", ") || "Geen docent";
+
+          html += `<div class="lesson"><strong>${subject}</strong><br>${start} – ${end}<br>Locatie: ${location}<br>Docent: ${teacher}</div>`;
+        });
+
+        scheduleDiv.innerHTML = html;
+        localStorage.setItem(cacheKey, html);
+
+      } catch (err) {
+        loader.style.display = "none";
+        scheduleDiv.innerHTML = "Fout bij ophalen rooster: " + err.message;
+      }
+    }
+
+    window.onload = loadSchedule;
+  </script>
+</body>
+</html>

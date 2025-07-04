@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zermelo Viewer</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <a href="help.html" class="help-link">Help</a>
+    <form id="loginForm">
+      <h1>ZermeloViewer</h1>
+      <label for="school">Schoolcode</label>
+      <input type="text" id="school" name="school" required />
+      <label for="koppelcode">Koppelcode</label>
+      <input type="text" id="koppelcode" name="koppelcode" required />
+      <button type="submit">OK</button>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const school = document.getElementById("school").value.trim();
+      const koppelcode = document.getElementById("koppelcode").value.trim();
+      localStorage.setItem("school", school);
+      localStorage.setItem("koppelcode", koppelcode);
+      window.location.href = "schedule.html";
+    });
+  </script>
+</body>
+</html>
